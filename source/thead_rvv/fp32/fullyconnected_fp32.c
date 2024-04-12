@@ -93,9 +93,12 @@ int shl_rvv_fullyconnected_gemm_fp32(struct csinn_tensor *input, struct csinn_te
     int k = accum_depth;
 
     float *input_reorder = (float *)shl_mem_alloc(m * k * sizeof(float));
+    float *weights_reorder = (float *)shl_mem_alloc(n * k * sizeof(float));
+    reorder_weight_npack2n_fp32(weights_data, weights_reorder, n, k);
     shl_rvv_reorder_a_block_12xk_fp32(input_data, input_reorder, m, k, m, k);
-    shl_rvv_gemm_a0b1_12xpack2n_fp32(output_data, input_reorder, weights_data, bias_data, m, k, n);
+    shl_rvv_gemm_a0b1_12xpack2n_fp32(output_data, input_reorder, weights_reorder, bias_data, m, k, n);
 
     shl_mem_free(input_reorder);
+    shl_mem_free(weights_reorder);
     return CSINN_TRUE;
 }
