@@ -27,4 +27,6 @@ void shl_multithread_set_threads(int threads);
 
 int shl_multithread_is_enable();
 
+void shl_multithread_splitter(const int n, const int team, const int tid, int* n_start, int* n_end);
+
 #endif  // INCLUDE_SHL_MULTITHREAD_H_

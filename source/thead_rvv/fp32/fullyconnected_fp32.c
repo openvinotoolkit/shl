@@ -30,17 +30,22 @@ static void reorder_weight_npack2n_fp32(const float *src, float *dst, int n, int
     const int packn = csrr_vlenb() / sizeof(float);
     const int pack2n = packn * 2;
 
-    int i = 0;
     int vl = vsetvl_e32m2(pack2n);
-    for (; i + pack2n - 1 < n; i += pack2n) {
-        const float *s_ptr = src + i * k;
+    int count = n / pack2n;
+#pragma omp parallel
+    for (int i = 0; i < count; ++i) {
+        const float *s_ptr = src + i * k * pack2n;
+        float *d_ptr = dst + i * k * vl;
         for (int j = 0; j < k; j++) {
             vfloat32m2_t _src = vlse32_v_f32m2(s_ptr, k * sizeof(float), vl);
-            vse32_v_f32m2(dst, _src, vl);
+            vse32_v_f32m2(d_ptr, _src, vl);
             s_ptr += 1;
-            dst += vl;
+            d_ptr += vl;
         }
     }
+
+    int i = pack2n * count;
+    dst += count * k * vl; 
     while (i < n) {
         int vl = vsetvl_e32m1(n - i);
         const float *s_ptr = src + i * k;
@@ -79,7 +84,7 @@ int shl_rvv_fullyconnected_gemm_fp32(struct csinn_tensor *input, struct csinn_te
     float *bias_data = (float *)bias->data;
     const int output_dims_count = output->dim_count;
     const int weights_dims_count = weights->dim_count;
-    const int bias_dims_count = bias->dim_count;
+
     int batches = 1;
     /* compute the outer size */
     for (int i = 0; i < output_dims_count - 1; i++) {
@@ -95,8 +100,19 @@ int shl_rvv_fullyconnected_gemm_fp32(struct csinn_tensor *input, struct csinn_te
     float *input_reorder = (float *)shl_mem_alloc(m * k * sizeof(float));
     float *weights_reorder = (float *)shl_mem_alloc(n * k * sizeof(float));
     reorder_weight_npack2n_fp32(weights_data, weights_reorder, n, k);
-    shl_rvv_reorder_a_block_12xk_fp32(input_data, input_reorder, m, k, m, k);
-    shl_rvv_gemm_a0b1_12xpack2n_fp32(output_data, input_reorder, weights_reorder, bias_data, m, k, n);
+
+#pragma omp parallel
+{
+   const int ithr = omp_get_thread_num();
+   const int nthr = omp_get_num_threads();
+
+   int m0 = 0, m1 = 0;
+   shl_multithread_splitter(m, nthr, ithr, &m0, &m1);
+
+   int local_m = m1 - m0;
+   shl_rvv_reorder_a_block_12xk_fp32(input_data + m0 * k, input_reorder + m0 * k, local_m, k, local_m, k);
+   shl_rvv_gemm_a0b1_12xpack2n_fp32(output_data + m0 * n, input_reorder + m0 * k, weights_reorder, bias_data, local_m, k, n);
+}
 
     shl_mem_free(input_reorder);
     shl_mem_free(weights_reorder);

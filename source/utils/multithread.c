@@ -41,3 +41,18 @@ int shl_multithread_is_enable()
 #endif
     return CSINN_FALSE;
 }
+
+void shl_multithread_splitter(const int n, const int team, const int tid, int* n_start, int* n_end) {
+    if (team <= 1 || n == 0) {
+        *n_start = 0;
+        *n_end = n;
+    } else {
+        int n1 = (n + team - 1) / team;
+        int n2 = n1 - 1;
+        int T1 = n - n2 * team;
+        *n_end = tid < T1 ? n1 : n2;
+        *n_start = tid <= T1 ? tid * n1 : T1 * n1 + (tid - T1) * n2;
+    }
+
+    *n_end += *n_start;
+}

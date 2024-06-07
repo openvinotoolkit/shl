@@ -32,7 +32,7 @@ include_directories(${SHL_SRC_DIR})
 target_include_directories(shl PUBLIC ${SHL_INCLUDE_DIRS})
 target_include_directories(shl PRIVATE ${SHL_SRC_DIR})
 
-set(SHL_RVV_BUILD_FLAGS -ffp-contract=off -march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d -DSHL_BUILD_RVV -DSHL_BUILD_REF -DSHL_BUILD_GREF)
+set(SHL_RVV_BUILD_FLAGS -ffp-contract=off -march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d -DSHL_BUILD_RVV -DSHL_BUILD_REF -DSHL_BUILD_GREF -fopenmp)
 target_compile_options(shl PRIVATE ${SHL_RVV_BUILD_FLAGS})
 
 set_target_properties(shl PROPERTIES FOLDER "shl")
